@@ -1,0 +1,102 @@
+	A GUI for STM32 accessed via OpenOCD
+
+This Tcl program was written for the following environment:
+- STM32F102C8T6 board "Blue Pill" with its SWD port
+  connected to Raspberry Pi's GPIO; see Connections
+- OpenOCD on the Pi (need version 0.10 or newer)
+  configured to access the board and accessible via
+  TCP(host=localhost,port=4444);  see Configurations
+
+It provides GUI for debugging the STM32 board:
+- registers / code / memory area(s) display
+- commands to set/clear breakpoints/watchpoints
+- commands to fetch/store memory cells
+- commands to run/halt/step the program
+
+Screenshot stm32f1d.png shows an example of the GUI window.
+
+The present version cannot load a program into the
+STM32 (it must be done by OpenOCD commands), and
+probably many more useful things may be wished...
+It is a "quick and dirty" code to get sth working.
+I still need ideas what is the most needed of it.
+
+Entry fields
+- Register value: yellow, for entering the register value,
+  shown after selecting the register by clicking a button
+  (use Enter to confirm edition, or Escape to cancel it)
+- Memory Address: address for Memory Operation
+- Memory Value: Read and Write use it for this purpose;
+  Display will use it as object count to be shown;
+  Break/Watch will use the field to tell their result
+Buttons
+- Run State - can be pink or (light)green: Trace Mode on/off
+  tells run state and flags (Running... or halt reason, like
+  S_St=single-step, D_Rq=debug-request, BPnt=breakpoint,
+  WPnt=watchpoint / Th=Thread, NZCVQ - lowercase when off)
+- Register values: turns on the register value editing
+  (only one register can be in edit mode at a time)
+- Memory Size (radio): Byte/Halfword/Word/Doubleword/Quadword
+- Memory Operation (command): Fetch, Store, Break, Watch,
+  Display (setup an area, V sets count), Refresh (all areas)
+  - need Addr to be entered (Write also needs Value)
+  - D and Q sizes are for Watch (watchpoint) only
+  - for Display the V specifies element (B/H/W) count
+- Break toggles a breakpoint; size should be H or W
+- Watch toggles a watchpoint; all 5 sizes allowed
+- on Memory Display: Refresh (single area) and X (destroy);
+  note: Memory Displays need a button click for refreshing
+
+To read and then write a memory cell need enter its address
+into Address field, select its size by Size button, perform
+the read by Fetch button, change the value in the Value field,
+and finally perform the write by Store button.
+
+Trace Mode
+- is shown by green color of the Run State button
+  (when the button is pink click it to change)
+- it recognizes keys: space=Step, r=Resume, h=Halt
+- '=>' on the left shows an instruction to be executed
+- 'B' on the left shows breakpoint(s)
+
+
+Connections
+
+	STM32F103C8T6	Raspberry Pi
+	P3-17=R=NRST	J8-16=GEN4=gpio23
+	P2-1=VDD=3V3	J8-17=3V3
+	P2-2=SW(D)IO	J8-18=GEN5=gpio24
+	P2-4=VSS=GND	J8-20=GND
+	P2-3=SW(D)CLK	J8-22=GEN6=gpio25
+Note:	J8 is the main Pi's connection header (34/40 pin);
+	on some models it can have other name, e.g. P1.
+
+Configurations
+
+	interface sysfsgpio
+
+	# minimal swd setup
+	sysfsgpio_swdio_num 24
+	sysfsgpio_swclk_num 25
+	sysfsgpio_srst_num 23
+
+	transport select swd
+
+	reset_config srst_only
+	reset_config srst_nogate
+	reset_config connect_assert_srst
+
+	source [find target/stm32f1x.cfg]
+
+	adapter_nsrst_delay 100
+	adapter_nsrst_assert_width 100
+
+	init
+	targets
+	reset halt
+
+The command in the last line requires Pi's GPIO pin 16
+to be connected to STM32's pin R (NRST); alternatively,
+'soft_reset_halt' or 'halt' command can be used here.
+
+References: https://wiki.stm32duino.com/index.php?title=Blue_Pill
